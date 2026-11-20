@@ -1,0 +1,188 @@
+COMANDOS
+Elimina TODOS los registros Y reiniciar el ID solo para bases y frutas.
+TRUNCATE TABLE bases;
+TRUNCATE TABLE frutas;
+ELIMINAR TABLAS 
+DROP´TABLE ...
+ELIMINAR REGISTROS de tablas
+DELETE FROM detalles_pedido;
+REINICIAR ID
+ALTER TABLE pedidos AUTO_INCREMENT = 1;
+INSERT INTO bases (nombre) VALUES
+  ('Nutella'),
+  ('Cajeta'),
+  ('Queso Philadelphia'),
+  ('Mermelada de Fresa');
+
+INSERT INTO frutas (nombre) VALUES
+  ('Fresa'),
+  ('Plátano'),
+  ('Durazno'),
+  ('Mango');
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------
+BASE DE DATOS 
+USE kire_crepas;
+CREATE TABLE IF NOT EXISTS bases (
+  id_base INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL,
+  tipo ENUM('DULCE', 'SALADA') NOT NULL DEFAULT 'DULCE',
+  activo BOOLEAN DEFAULT TRUE,
+  disponible BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS frutas (
+  id_fruta INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL,
+  activo BOOLEAN DEFAULT TRUE,
+  disponible BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE TABLE IF NOT EXISTS pedidos (
+  id_pedido INT AUTO_INCREMENT PRIMARY KEY,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  total DECIMAL(10, 2) NOT NULL,
+  efectivo DECIMAL(10, 2) NOT NULL,
+  cambio DECIMAL(10, 2),
+  tipo_entrega VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
+  costo_envio DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  estado VARCHAR(20) DEFAULT 'ACTIVO',
+  observaciones VARCHAR(500) NULL,
+  id_usuario INT,
+  id_corte INT NULL,
+
+  FOREIGN KEY (id_usuario)
+    REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+
+  CONSTRAINT fk_pedidos_corte
+    FOREIGN KEY (id_corte)
+    REFERENCES cortes_caja(id_corte)
+);
+
+CREATE TABLE IF NOT EXISTS detalles_pedido (
+    id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+    id_pedido INT NOT NULL,
+    categoria VARCHAR(50) DEFAULT 'Sin categoría',
+    producto VARCHAR(200) NOT NULL,
+    cantidad INT NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+
+    FOREIGN KEY (id_pedido)
+        REFERENCES pedidos(id_pedido)
+        ON DELETE CASCADE
+);
+-------------------------------------------------------------------------------------------------------------------------------------------
+-- Crear tabla de precios para crepas
+CREATE TABLE IF NOT EXISTS precios_crepas (
+    id_precio INT AUTO_INCREMENT PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL UNIQUE,
+    precio DECIMAL(10, 2) NOT NULL
+);
+
+-- Insertar los precios
+INSERT INTO precios_crepas (tipo, precio) VALUES
+('Base + 1 Fruta', 55.00),
+('Base + 2 Frutas', 65.00),
+('Base + 3 Frutas', 75.00),
+('2 Bases + 1 Fruta', 65.00),
+('2 Bases + 2 Frutas', 75.00),
+('2 Bases + 3 Frutas', 85.00),
+('3 Bases + 1 Fruta', 75.00),
+('3 Bases + 2 Frutas', 85.00),
+('3 Bases + 3 Frutas', 95.00),
+('Solo Base', 35.00),     
+('Solo Fruta', 45.00);  
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+  usuario VARCHAR(50) UNIQUE NOT NULL,
+  nombre_completo VARCHAR(100) NOT NULL,
+  contrasena VARCHAR(255) NOT NULL,
+  rol VARCHAR(20) DEFAULT 'CAJERO',
+  activo BOOLEAN DEFAULT TRUE
+);
+INSERT INTO usuarios (usuario, nombre_completo, contrasena, rol) 
+VALUES ('admin', 'KYRE Administrador', 'admin123', 'ADMIN');
+--------------------------------------------------------------------------------------------------------------------------------------------- 
+
+CREATE TABLE IF NOT EXISTS cortes_caja (
+    id_corte INT AUTO_INCREMENT PRIMARY KEY,
+    fecha_apertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_cierre TIMESTAMP NULL,
+    id_usuario_apertura INT,
+    id_usuario_cierre INT,
+    total_ventas DECIMAL(10,2),
+    total_efectivo DECIMAL(10,2),
+    total_cambio DECIMAL(10,2),
+    total_pedidos INT,
+    total_productos INT,
+    estado VARCHAR(20) DEFAULT 'ABIERTO',
+    observaciones TEXT,
+    FOREIGN KEY (id_usuario_apertura) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_usuario_cierre) REFERENCES usuarios(id_usuario)
+);
+----------------------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS categorias (
+    id_categoria INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    es_especial BOOLEAN DEFAULT FALSE,
+    activo BOOLEAN DEFAULT TRUE,
+    disponible BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- Insertar la categoría especial "Crepas"
+INSERT INTO categorias (nombre, es_especial) VALUES ('Crepas', TRUE);
+
+
+CREATE TABLE IF NOT EXISTS productos (
+    id_producto INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    precio DECIMAL(10,2) NOT NULL,
+    imagen VARCHAR(255) DEFAULT 'sin_imagen.png',
+    id_categoria INT NOT NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    disponible BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria)
+);
+
+
+CREATE TABLE IF NOT EXISTS extras (
+    id_extra INT AUTO_INCREMENT PRIMARY KEY,
+    id_categoria INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    precio DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    disponible BOOLEAN NOT NULL DEFAULT TRUE,
+
+    CONSTRAINT fk_extras_categoria
+        FOREIGN KEY (id_categoria)
+        REFERENCES categorias(id_categoria),
+
+    CONSTRAINT uq_extras_categoria_nombre
+        UNIQUE (id_categoria, nombre),
+
+    CONSTRAINT chk_extras_precio
+        CHECK (precio >= 0)
+);
+
+
+CREATE TABLE IF NOT EXISTS detalles_pedido_extras (
+    id_detalle_extra INT AUTO_INCREMENT PRIMARY KEY,
+    id_detalle INT NOT NULL,
+    id_extra INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    cantidad INT NOT NULL DEFAULT 1,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+
+    FOREIGN KEY (id_detalle)
+        REFERENCES detalles_pedido(id_detalle)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (id_extra)
+        REFERENCES extras(id_extra),
+
+    CHECK (cantidad > 0),
+    CHECK (precio_unitario >= 0)
+);
